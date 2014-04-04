@@ -29,6 +29,7 @@ class Nonogram:
         colors: a list of hexadecimal color codes
         """
         self.colormap = colors
+        pass
 
     def addline(self, dim, seg_nblocks, seg_coloridx):
         """
