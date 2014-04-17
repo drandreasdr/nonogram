@@ -1,0 +1,58 @@
+On strategies for investigating if a partially or fully uncovered configuration of a line is in agreement with the layout of the segments (the task of the method isvalid())
+
+
+>Strategy 1:
+Place seg 0 as early as possible, then seg 1 as early as possible after that, fill the rest with empty cells. If overlapping
+
+Segs:
+XX,Y,XX
+Uncovered (obv not in agreement with segs: add one "-" for a conf that is):
+----XXY-
+Process of filling:
+XX------ (first seg placed as early as possible)
+XXY----- (second -||-)
+XXY0XX-- (last seg moved up to avoid conflict with known conf)
+XXY0XX00 (filling out the rest with empties)
+now, since we've already placed our Y, we have a mismatch against the known conf. Thus, we can't know the answer to whether the uncovered conf is in agreement with the segment layout until we've tested all possible configurations.
+
+Verdict Strategy 1:
++Doesn't assume anything about the known conf
+-Requires testing all possible configurations to work
+
+>Strategy 2:
+Assume that the known conf represents the the initial part of the line (assert this?). Place seg 0 as early as possible (without conflict), then seg 1 etc. Return False as soon as there is a conflict (*) or if a segment falls outside of a line.
+(*) Conflict is checked for at the range of blocks starting at the block after the last segment up to the last block of the current segment
+
+Segs:
+XX,Y,XX
+Uncovered (and valid wrt segments):
+00XX0Y--
+Process of filling:
+00XX----
+00XX0Y--
+00XX0YXX
+thus valid
+
+Uncovered (and NOT valid wrt segments):
+00XX00Y-
+Process of filling:
+00XX----
+00XX00Y-
+not valid: next segment would fall outside of line
+
+Uncovered (and NOT valid wrt segments):
+00XX0YY-
+Process of filling:
+00XX0Y-- (fine, because of (*)) 
+00XX0YXX (found a position for XX, but subsequent check fails)
+not valid: conflict between last segment (and the empties before it (none in this case)) and uncovered conf.
+
+Uncovered (and NOT valid wrt segments):
+0000Y---
+Process of filling:
+00000XX-
+not valid: conflict between last segment placed and the empties before it, and the uncovered conf.
+
+Verdict Strategy 2:
++Doesn't require iterating over many configurations: requires only a small number of operations (<= line.length) per segment. Huge benefit in computational 
+-Assumes that the uncovered conf is at the start of the line.

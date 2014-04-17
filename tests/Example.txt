@@ -1,0 +1,21 @@
+X: a color
+Y: another color
+0: empty
+iY: at current stage, segment number i can move
+iN->(i-1)N->(i-2)Y: segment number i can't move, neither can segment (i-1), but segment (i-2) can move, so that is next in line to move. After this, all segments after (i-2) will be moved as close as possible to it.
+
+XYYXXX0X00 3Y
+XYYXXX00X0 3Y
+XYYXXX000X 3N->2Y
+XYY0XXX0X0 3Y
+XYY0XXX00X 3N->2Y
+XYY00XXX0X 3N->2N->1Y
+X0YYXXX0X0 3Y
+X0YYXXX00X 3N->2Y
+X0YY0XXX0X 3N->2Y->1Y
+X00YYXXX0X 3N->2N->1N->0Y
+0XYYXXX0X0 3Y
+0XYYXXX00X 3N->2Y
+0XYY0XXX0X 3N->2N->1Y
+0X0YYXXX0X 3N->2N->1N->0Y
+00XYYXXX0X 3N->2N->1N->0N (doesn't actually happen because hasnextconfiguration() will return false, so setnextconfiguration() won't be entered.)
