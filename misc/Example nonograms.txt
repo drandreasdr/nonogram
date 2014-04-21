@@ -1,4 +1,5 @@
-1: screenshot
+1: screenshot only
 2: http://onlinenonograms.com/crossword/malenko_derevo
 3: http://onlinenonograms.com/crossword/lightbulb
-4: screenshot
+4: screenshot only
+5: http://onlinenonograms.com/crossword/gribok_mario

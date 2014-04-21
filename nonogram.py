@@ -5,6 +5,47 @@
 import copy
 import line
 import numpy as np
+import grid.grid as grid
+
+class NonogramVisualizer:
+    """
+    Stores and plots a Nonogram object
+    topleftpos and dimensions (float tuples) determine its size and position
+    """
+    def __init__(self, nonogram, topleftpos, dimensions):
+        self.nonogram = nonogram
+        self.topleftpos = topleftpos
+        self.dimensions = dimensions
+        #Set up positions of draw areas:
+        maxnseg = tuple(max([len(rowcol.segments) for rowcol in nonogram.rowscols[i]]) for i in range(2))
+        cellsize = min(self.dimensions[i]/(maxnseg[i-1] + nonogram.nrowcol[i-1]) for i in range(2))
+        rowboxwidth = maxnseg[0]*cellsize
+        colboxheight = maxnseg[1]*cellsize
+        mainboardtopleftpos = (topleftpos[0] + rowboxwidth, topleftpos[0] + colboxheight)
+        mainboarddims = tuple(cellsize*nonogram.nrowcol[i-1] for i in range(2))
+        #rowboxdims = (rowboxwidth, mainboarddims[1])
+        #colboxdims = (mainboarddims[0], colboxheight)
+
+        self.mainboard = self.MainBoard(mainboardtopleftpos, cellsize, nonogram.nrowcol)
+        self.rowbox = self.LineBox(0, (topleftpos[0], mainboardtopleftpos[1]), rowboxwidth, cellsize)
+        self.colbox = self.LineBox(0, (mainboardtopleftpos[0], topleftpos[1]), colboxheight, cellsize)
+
+    def draw(self, displaysurf):
+        #Draw main board:
+        self.mainboard.draw(displaysurf)
+        #Draw line boxes:
+
+
+    class LineBox:
+        def __init__(self, dim, topleftpos, depth, cellsize):
+            pass
+
+    class MainBoard:
+        def __init__(self, topleftpos, cellsize, nrowcol):
+            self.grid = grid.Grid(topleftpos, (cellsize, cellsize), nrowcol, 5, 2)
+
+        def draw(self, displaysurf):
+            self.grid.draw(displaysurf)
 
 class Nonogram:
     """
@@ -18,15 +59,15 @@ class Nonogram:
     Note: cells are identified by a number: -1: unknown, 0: known and empty,
     > 0: colors as described by "colormap"
     """
-    def __init__(self, nrows, ncols):
+    def __init__(self, nrow, ncol):
         """
         Just initializes row and col lists. Other methods take care of setting them up.
         """
-        self.nrowscols = (nrows, ncols)
+        self.nrowcol = (nrow, ncol)
         self.rowscols = [[],[]]
         self.masterdim = 0 #change setting to alter along which dimension recursive solution is performed
         self.slavedim = 1 - self.masterdim
-        self.nmasterslave = [self.nrowscols[i] for i in [self.masterdim, self.slavedim]]
+        #self.nmasterslave = [self.nrowcol[i] for i in [self.masterdim, self.slavedim]]
         self.issetupcomplete = False
         self.validsolutionjustfound = False
 
@@ -50,8 +91,8 @@ class Nonogram:
         Note: the method Segment.appendsegment() will warn if the line is overcrowded.
         """
         assert len(seg_length) == len(seg_coloridx), 'List of segment lengths and list of segment color indices not equal in length'
-        assert len(self.rowscols[dim]) <= self.nrowscols[dim], "No more lines can be added for this dimension"
-        linelength = self.nrowscols[1-dim] #length of line is length of the other dimension
+        assert len(self.rowscols[dim]) <= self.nrowcol[dim], "No more lines can be added for this dimension"
+        linelength = self.nrowcol[1-dim] #length of line is length of the other dimension
         newline = line.Line(linelength, seg_length, seg_coloridx)
         if dim == self.masterdim:
             newline.setinitialconfiguration()
@@ -64,7 +105,7 @@ class Nonogram:
         """
         issetupcomplete = True
         for i in range(len(self.rowscols)):
-            if len(self.rowscols[i]) != self.nrowscols[i]:
+            if len(self.rowscols[i]) != self.nrowcol[i]:
                 issetupcomplete = False
         self.issetupcomplete = issetupcomplete
 
@@ -108,7 +149,7 @@ class Nonogram:
                 #and skip directly to setting next conf (if possible)
             else:
                 if self.isboardvalid(i_masterline): #
-                    if i_masterline == self.nmasterslave[0]-1: #at last line
+                    if i_masterline == self.nrowcol[self.masterdim] - 1: #at last line
                         return True
                     if self.setnextvalidconfiguration(i_masterline+1): #recursive call
                         return True
@@ -130,7 +171,7 @@ class Nonogram:
         uncoveredboard = [masterlines[i].getconfiguration() for i in range(curmasteridx+1)]
         partialcols = tuple(zip(*uncoveredboard)) #maybe use numpy instead?
         for i, partialcol in enumerate(partialcols):
-            uncoveredconf = [-1]*(self.nrowscols[self.masterdim])
+            uncoveredconf = [-1]*(self.nrowcol[self.masterdim])
             uncoveredconf[:curmasteridx+1] = partialcol
             if not self.rowscols[self.slavedim][i].isuncoveredconfvalid(uncoveredconf):
                 return False
@@ -141,7 +182,7 @@ class Nonogram:
         Note that it is the master lines that store the configuration of the board
         """
         if endidx == None:
-            endidx = self.nmasterslave[0]
+            endidx = self.nrowcol[self.masterdim]
         #The board (possibly partial):
         board = np.array([self.rowscols[self.masterdim][i].getconfiguration() for i in range(endidx)])
         if self.masterdim == 1:
