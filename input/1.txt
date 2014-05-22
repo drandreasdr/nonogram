@@ -1,4 +1,5 @@
-1 black
+COLORS
+0,0,0
 
 ROWS
 2

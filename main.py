@@ -1,5 +1,6 @@
 import pygame
 import nonogram
+import examples
 
 def main():
     pygame.init() #must be called first
@@ -10,19 +11,10 @@ def main():
     #HOW ABOUT UPDATE DISPLAY? SHOULD I DO THAT AFTER EVERY DRAWING OPERATION? NO PROBABLY NOT, ONLY AFTER EVERYTHING HAS BEEN DRAWN AFTER A GIVEN DRAW CALL
 
     #Construct nonogram (REPLACE THIS):
-    nng = nonogram.Nonogram(5,5)
-    nng.addline(0, [2], [1])
-    nng.addline(0, [1,1,1], [1,1,1])
-    nng.addline(0, [2,2], [1,1])
-    nng.addline(0, [3], [1])
-    nng.addline(0, [1], [1])
-
-    nng.addline(1, [3], [1])
-    nng.addline(1, [1,1], [1,1])
-    nng.addline(1, [1,1], [1,1])
-    nng.addline(1, [3], [1])
-    nng.addline(1, [3], [1])
-
+    #nng = examples.constructnonogram(4)
+    #nng = nonogram.readnonogramfromfile("1_alt.txt")
+    nng = nonogram.readnonogramfromfile("8.txt")
+    nng.solve()
     nngvis = nonogram.NonogramVisualizer(nng, (padding, padding), tuple(dim - 2*padding for dim in dimensions))
 
     nngvis.draw(displaysurf)

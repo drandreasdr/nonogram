@@ -1,13 +1,15 @@
 ##TODO:
 ##>Might save computational time if I do the following after finding the first solution: check validity across whole board, not just masterline 0 up to current.
 ##^NO! SHOULDN'T LOOK AT ANYTHING BELOW!
-
 import copy
 import line
 import numpy as np
+#For NonogramVisualizer only:
 import grid.grid as grid
+import pygame
 
 class NonogramVisualizer:
+
     """
     Stores and plots a Nonogram object
     topleftpos and dimensions (float tuples) determine its size and position
@@ -18,7 +20,7 @@ class NonogramVisualizer:
         self.dimensions = dimensions
         #Set up positions of draw areas:
         maxnseg = tuple(max([len(rowcol.segments) for rowcol in nonogram.rowscols[i]]) for i in range(2))
-        cellsize = min(self.dimensions[i]/(maxnseg[i-1] + nonogram.nrowcol[i-1]) for i in range(2))
+        cellsize = min(self.dimensions[i]/(maxnseg[i] + nonogram.nrowcol[1-i]) for i in range(2))
         rowboxwidth = maxnseg[0]*cellsize
         colboxheight = maxnseg[1]*cellsize
         mainboardtopleftpos = (topleftpos[0] + rowboxwidth, topleftpos[0] + colboxheight)
@@ -26,23 +28,74 @@ class NonogramVisualizer:
         #rowboxdims = (rowboxwidth, mainboarddims[1])
         #colboxdims = (mainboarddims[0], colboxheight)
 
-        self.mainboard = self.MainBoard(mainboardtopleftpos, cellsize, nonogram.nrowcol)
-        self.rowbox = self.LineBox(0, (topleftpos[0], mainboardtopleftpos[1]), rowboxwidth, cellsize)
-        self.colbox = self.LineBox(0, (mainboardtopleftpos[0], topleftpos[1]), colboxheight, cellsize)
+        self.mainboard = self.MainBoard(nonogram, mainboardtopleftpos, cellsize, nonogram.nrowcol)
+        self.rowbox = self.LineBox(nonogram, 0, (topleftpos[0], mainboardtopleftpos[1]), rowboxwidth, cellsize)
+        self.colbox = self.LineBox(nonogram, 1, (mainboardtopleftpos[0], topleftpos[1]), colboxheight, cellsize)
 
     def draw(self, displaysurf):
         #Draw main board:
         self.mainboard.draw(displaysurf)
         #Draw line boxes:
+        self.rowbox.draw(displaysurf)
+        self.colbox.draw(displaysurf)
 
 
     class LineBox:
-        def __init__(self, dim, topleftpos, depth, cellsize):
-            pass
+        def __init__(self, nonogram, dim, topleftpos, depth, cellsize):
+            self.nonogram = nonogram
+            self.dim = dim
+            self.topleftpos = topleftpos
+            self.depth = depth
+            self.cellsize = cellsize
+
+            #Font to be used
+            self.font = pygame.font.Font(None, int(cellsize))
+            self.fontcolor = (255, 255, 255)
+            self.fontcolor_alternative = (0, 0, 0) #used if cell color is close enough to fontcolor
+            #Create list of grids:
+            self.linegrids = [None]*nonogram.nrowcol[dim]
+            for i_line, line in enumerate(nonogram.rowscols[dim]):
+                segs = line.segments
+                #Top left position and nrowcol:
+                topleftpos_linegrid = [0]*2
+                topleftpos_linegrid[dim] = topleftpos[dim] + depth - len(segs)*cellsize
+                topleftpos_linegrid[1-dim] = topleftpos[1-dim] + i_line*cellsize
+                nrowcol_linegrid = [0]*2
+                nrowcol_linegrid[dim] = 1
+                nrowcol_linegrid[1-dim] = len(segs)
+                #Colors:
+                colors_linegrid = [0]*len(segs)
+                for i_seg, seg in enumerate(segs):
+                    colors_linegrid[i_seg] = nonogram.colormap[seg.coloridx]
+                #Create grid:
+                linegrid = grid.Grid(topleftpos_linegrid, (cellsize, cellsize), nrowcol_linegrid, borderwidth = 1, colors = colors_linegrid)
+                self.linegrids[i_line] = linegrid
+
+        def draw(self, displaysurf):
+            for i_line, linegrid in enumerate(self.linegrids):
+                linegrid.draw(displaysurf)
+                #Draw text:
+                textpos = list(linegrid.xy)
+                for i_seg in range(linegrid.nrowcol[1-self.dim]):
+                    number = self.nonogram.rowscols[self.dim][i_line].segments[i_seg].length
+                    fontsurf = self.font.render(str(number), True, self.fontcolor)
+                    displaysurf.blit(fontsurf, textpos)
+                    textpos[self.dim] += self.cellsize
 
     class MainBoard:
-        def __init__(self, topleftpos, cellsize, nrowcol):
+        def __init__(self, nonogram, topleftpos, cellsize, nrowcol):
+            self.nonogram = nonogram
+            self.topleftpos = topleftpos
+            self.cellsize = cellsize
+            self.nrowcol = nrowcol
+
             self.grid = grid.Grid(topleftpos, (cellsize, cellsize), nrowcol, 5, 2)
+            board = self.nonogram.firstsolvedboard
+            for i in range(nonogram.nrowcol[0]):
+                for j in range(nonogram.nrowcol[1]):
+                    color = nonogram.colormap[board[i][j]]
+                    self.grid.setcolor(i, j, color)
+
 
         def draw(self, displaysurf):
             self.grid.draw(displaysurf)
@@ -59,7 +112,7 @@ class Nonogram:
     Note: cells are identified by a number: -1: unknown, 0: known and empty,
     > 0: colors as described by "colormap"
     """
-    def __init__(self, nrow, ncol):
+    def __init__(self, nrow, ncol, colormap):
         """
         Just initializes row and col lists. Other methods take care of setting them up.
         """
@@ -70,6 +123,7 @@ class Nonogram:
         #self.nmasterslave = [self.nrowcol[i] for i in [self.masterdim, self.slavedim]]
         self.issetupcomplete = False
         self.validsolutionjustfound = False
+        self.colormap = ((255,255,255),) + colormap
 
     def setup(self):
         #Open text file, read color indices and set up, find ROWS line, define rows, find COLS line, define cols.
@@ -188,3 +242,55 @@ class Nonogram:
         if self.masterdim == 1:
             board = board.T
         return board.tolist()
+
+def readnonogramfromfile(filename):
+    def inputlinetononogramline(inputline):
+        lineparts = inputline.replace(" ", "").split(";")
+        #Segment lengths:
+        seg_length = list(map(int, lineparts[0].split(",")))
+        #Colors:
+        if len(lineparts) == 1:
+            seg_coloridx = [1]*len(seg_length)
+        else:
+            seg_coloridx = list(map(int, lineparts[1].split(",")))
+        return (seg_length, seg_coloridx)
+
+    with open('input/' + filename, 'r') as f:
+        section = 0
+        headers = ["COLORS", "ROWS", "COLS"]
+        colors = []
+        rows = [[],[]]
+        cols = [[],[]]
+        for rawinputline in f:
+            inputline = rawinputline.rstrip("\n")
+            if inputline in headers: #arrived at a header
+                section += 1
+                continue
+            if len(inputline) == 0 or not inputline[0].isnumeric():
+                continue
+
+            if section == 1:
+                color_str = inputline.replace(" ", "").split(",")
+                color = tuple(map(int, color_str))
+                colors.append(color)
+            elif section == 2:
+                linedata = inputlinetononogramline(inputline)
+                rows[0].append(linedata[0])
+                rows[1].append(linedata[1])
+            elif section == 3:
+                linedata = inputlinetononogramline(inputline)
+                cols[0].append(linedata[0])
+                cols[1].append(linedata[1])
+
+        assert section == 3, "Not complete"
+
+        #Construct nonogram:
+        colors = tuple(colors)
+        nrows = len(rows[0])
+        ncols = len(cols[0])
+        nonogram = Nonogram(nrows, ncols, colors)
+        for i in range(nrows):
+            nonogram.addline(0, rows[0][i], rows[1][i])
+        for i in range(ncols):
+            nonogram.addline(1, cols[0][i], cols[1][i])
+        return nonogram
